@@ -1,0 +1,179 @@
+﻿/**********************************************************************
+ * Cole Feely
+ * ECE 304
+ * Junior Design Project
+ * 
+ * 
+ * Sources consulted:
+ * Given materials in Moodle
+ * howtomechatronics.com/tutorials/arduino/ultrasonic-sensor-hc-sr04
+ *********************************************************************/
+
+
+
+
+// LED Display
+
+
+#include <SPI.h>
+#include <Adafruit_SSD1306.h>
+Adafruit_SSD1306 display(128,64,&Wire,4);
+int myCounter; //this is the variable that will be displayed
+
+
+// 7-Segment Display
+
+
+#include "avr/io.h"
+#include "util/delay.h"
+#define DIG2 PB2 // enables DIG2. ATmega pin PB2/ Arduino pin 10
+#define DIG3 PB1 // enables DIG3. ATmega pin PB1/ Arduino pin 9
+#define DIG4 PB0 // enables DIG4. ATmega pin PB0/ Arduino pin 8
+void disp3Digits(unsigned char, unsigned char, unsigned char);
+
+
+// Sonar 
+
+
+//define pin numbers
+const int trigPin = 12;
+const int echoPin = 13; // NOTE TO SELF: THESE PINS MAY CLASH WITH THE ONES FOR DISPLAYS
+
+
+//define variables
+long duration;
+int distance;
+float newdistance;
+
+
+
+
+// RED LED
+void LEDon();
+void LEDoff();
+#define LED 11 // set pin 11 as the pin for the LED
+
+
+// Software
+void cmtoft(int);
+
+
+void setup() {
+  // LED Display
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+
+
+  // 7-Segment Display
+  DDRD = 0xFF; // 7-segment pins
+  DDRB = (1 << 2) | (1 << 1) | (1 << 0); // digit enables
+
+
+  // Sonar
+
+
+  pinMode(trigPin, OUTPUT); // Sets the trigPin as the output
+  pinMode(echoPin, INPUT);  // Sets the echoPin as the input
+  Serial.begin(9600); // Starts the serial communication
+
+
+  // RED LED
+  pinMode(LED,OUTPUT);
+
+
+}
+
+
+void loop() {
+  
+  // Sonar
+  digitalWrite(trigPin, LOW); // Clear the trigPin
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH); // Set the triPin on High state for 10 ms
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW); // Reset the trig Pin 
+
+
+  // LED
+  digitalWrite(LED,HIGH);
+
+
+
+
+
+
+  
+  duration = pulseIn(echoPin, HIGH); // reads the echoPin, returns the sound wave travel time in microseconds
+  distance = duration * 0.034 / 2; // Calculating the distance
+  distance = distance / 30.48;
+  //newdistance = cmtoft(distance);
+  // LED Display
+  display.clearDisplay();
+  display.setCursor(1,1); 
+  display.print("Distance = ");
+  display.print(distance);
+  display.print(" ");
+  display.println("ft");
+  display.println("By Cole Feely");
+  display.display();
+
+
+
+
+  // 7-Segment Display
+  unsigned char digit1, digit2, digit3;
+  digit1 = distance % 10;
+  digit2 = (distance / 10) % 10;
+  digit3 = (distance / 100);
+  disp3Digits(digit1, digit2, digit3);
+  
+
+
+  
+}
+
+
+/* Illuminate 3 digits of the 4 digit 7 segment display
+* The 7 segments (a, b, c, d, e, f, g) correspond to ATmega328P pins D0-D7, 
+* Arduino Uno pins 0-6. Enable pins DIG2, DIG3, DIG4 corresspond to PB0, PB1, PB0,
+* which correspondsd to Arduino Uno pins 8, 9, 10 */
+void disp3Digits(unsigned char d1, 
+                 unsigned char d2,
+                 unsigned char d3) {
+    unsigned char ledDigits[] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D,
+        0x07, 0x7F, 0x67};
+
+
+    for (unsigned char i = 0; i < 5; i++) { //this code will refresh at 5x30=150 mS
+        PORTD = ledDigits[d3]; //10's digit
+        PORTB = (1 << DIG3) | (1 << DIG4); //enable DIG2, disable DIG3 & DIG4, 0000 0011
+        _delay_ms(10);
+        PORTD = ledDigits[d2] + 128; //1's digit w decimal pt
+        PORTB = (1 << DIG2) | (1 << DIG4); //enable DIG3, disable DIG2,DIG4  0000 0101
+        _delay_ms(10);
+        PORTD = ledDigits[d1]; //0.1's digit
+        PORTB = (1 << DIG2) | (1 << DIG3); //enable DIG4, disable DIG2,DIG3 0000 0110
+        _delay_ms(10);
+    }
+    return;
+}
+
+
+void LEDon(){
+  digitalWrite(11,HIGH);
+  delay(1000);
+  }
+void LEDoff(){
+  digitalWrite(11,LOW);
+  delay(1000);
+  }
+
+
+void cmtoft(int distance){
+  float conv = 30.48;
+  float feet;
+  feet = distance / conv;
+  return feet;
+  }

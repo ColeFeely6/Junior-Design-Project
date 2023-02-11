@@ -1,0 +1,212 @@
+//Cole Feely
+// ECE 304 Junior Design Project
+// Build 2
+#include <avr/io.h>
+#include "i2c.h"
+#include "SSD1306.h"
+#include <util/delay.h>
+#include <string.h>
+#include <stdlib.h>
+
+
+#define F_CPU 16000000
+#define DIG2 PB2    
+#define DIG3 PB1    
+#define DIG4 PB0 
+#define TRIGGER PC3
+#define ECHO PC2
+#define OLEDGREEN PC5
+#define OLEDYELLOW PC4
+   
+ 
+void disp3Digits(unsigned char, unsigned char, unsigned char);
+int Sonar(void);
+int numApproaches(int value, int currentCustomer);
+void LEDON(int distance);
+ 
+
+ 
+int main(void){
+    OLED_Init(); // Init the OLED
+    OLED_GoToLine(0);
+    //----------------------- Setting up Pins -----------------------------------
+    // W H I T E
+    DDRD = 0xFF; // Open up all the PD pins for the seven segment A-H pins 
+    // B L U E  
+    DDRB = (1 << DIG2) | (1 << DIG3) | (1 << DIG4); // Open up all the PB pins for the digits of the seven segment
+    // G R E E N : O R A N G E : Y E L L O W : P U R P L E
+    DDRC &= ~(1 << ECHO); // Turn on all the pins except for the echo pin 
+
+        int distArray[100] = {0}; // set up an array of distances
+        int numApproaches = 0; // count the number of approaches
+        int currApproach = 0; // the current approach distance
+        unsigned char digit1, digit2, digit3;
+        unsigned int value, dist;
+        int minDistance = 90; // The minimum distance, set as a high value so we can replace with 1st iteration
+
+        while (1) { 
+            distance = Sonar();
+            digit1 = distance % 10;
+            digit2 = (distance / 10) % 10;
+            digit3 = (distance / 100);
+            disp3Digits(digit1, digit2, digit3); // Display on the 7-seg
+
+            //--------------------------------------------------------------
+
+            // If this ditance is the new minimum distance
+            if (minDistance > distance){
+                minDistance = distance;
+                }
+
+            if (currApproach == 0 & numCustomers(distance, currApproach)== 1){
+                distArray[numApproaches] = minDistance;
+                minDistance = 100; // reset min distance
+                currApproach = 1; // update current approach 
+                numApproaches = numApproaches + 1; // increment the counter
+            }
+            int previous = 0;
+            int sum = 0;
+            int minimum = 100;
+
+
+            int lowest = ((numApproaches * .15)+1)/1; // grab the 15% here
+
+            int i, j;
+            for ( j = 0; j < lowest; j = j + 1){
+                for (i = 0; i < numCustomer; i = i+1) {
+
+                    if (distanceArray[i] < minimum){
+                        if (distanceArray[i] > previous) 
+                    {
+
+                    minimum = distanceArray[i]; //update min
+                    if (previous == minimum){
+                        previous = prev - 1; 
+                    }
+                    }
+                }
+            }
+            previous = minimum; // set new prev for sum
+            sum = sum + minimum;
+            minimum = 100;
+            }
+            //--------------------------------------------------------------
+
+            disp3Digits(digit1, digit2, digit3);
+            OLED_GoToLine(1);
+            OLED_DisplayString("AVG of closest ");
+            OLED_GoToLine(2);
+            OLED_DisplayString("15% of approaches: ");
+            int average = sum/lowest;
+            OLED_DisplayNumber(10, average, 2);
+            OLED_GoToLine(3);
+            OLED_DisplayString("Closest distance of");
+            OLED_GoToLine(4);
+            OLED_DisplayString("each customer:");
+            OLED_GoToLine(5);
+            OLED_DisplayString("Close customers: ");
+            OLED_DisplayNumber(10, numApproaches, 2);
+            OLED_GoToLine(6);
+
+            //--------------------------------------------------------------
+            int x;
+            disp3Digits(digit1, digit2, digit3);
+            for( x=0; x < numApproaches); x++){
+
+              disp3Digits(digit1, digit2, digit3);
+
+              OLED_DisplayNumber(10, distArray[x], 2);
+              OLED_DisplayString(", ");
+              if (x > 4){OLED_GoToLine(7);}
+              if (x > 8){OLED_GoToLine(8);}
+            }
+            if (currApproach == 1 & numApproaches(dist, currApproach)== 0)
+            {
+                currApproach = 0;
+            }
+            disp3Digits(digit1, digit2, digit3);
+
+            LEDON(distance);
+        //--------------------------------------------------------------
+        }
+}
+
+void LEDON(int distance){
+    if(distance < 72){
+                PORTC |= (1<<1);
+                PORTC &= ~(1<<0);
+            }
+            else{
+                PORTC |= (1<<0);
+                PORTC &= ~(1<<1);
+            }
+}
+
+
+int Sonar() {
+  int distance = -1;
+    while(distance < 0){
+    unsigned int risetime, falltime pulse;
+    
+
+    PORTC |= (1<<TRIGGER); // BEGIN PULSE
+    _delay_ms(10); // WAIT
+    PORTC &= ~(1<<TRIGGER); // END PULSE
+    
+
+    TCCR1B = 0x45; // Load
+    TCNT1 = 0x00; // Detect pulse
+    
+   // Read echo pin
+    while ((PINC & (1 << ECHO)) == 0);
+    risetime = TCNT1; // Record rising time
+
+    while ((PINC & (1 << ECHO)) > 0);
+    falltime = TCNT1; // Record falling time
+
+
+    pulseWidth = falltime - risetime;
+    distance = pulse * 1.098*.5; // Calculate distance
+    }
+  return distance;
+}
+
+
+ 
+int numApproaches(int distance, int currApproach){
+  int return_val = 0;
+  if (currApproach == 0)
+  {
+    if (distance < 72) || (distance > 80){
+      return_val = 1;
+    }
+  }
+  return return_val;
+}
+ 
+ 
+// Code from class 
+
+/* Illuminate 3 digits of the 4 digit 7 segment display
+* The 7 segments (a, b, c, d, e, f, g) correspond to ATmega328P pins D0-D7,
+* Arduino Uno pins 0-6. Enable pins DIG2, DIG3, DIG4 corresspond to PB0, PB1, PB0,
+* which correspondsd to Arduino Uno pins 8, 9, 10 */
+void disp3Digits(unsigned char d1,
+                 unsigned char d2,
+                 unsigned char d3) {
+    unsigned char ledDigits[] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D,
+        0x07, 0x7F, 0x67};
+    unsigned char i;
+    for (i = 0; i < 5; i++) { //this code will refresh at 5x30=150 mS
+        PORTD = ledDigits[d3]; //10's digit
+        PORTB = (1 << DIG3) | (1 << DIG4); //enable DIG2, disable DIG3 & DIG4, 0000 0011
+        _delay_ms(10);
+        PORTD = ledDigits[d2] + 128; //1's digit w decimal pt
+        PORTB = (1 << DIG2) | (1 << DIG4); //enable DIG3, disable DIG2,DIG4  0000 0101
+        _delay_ms(10);
+        PORTD = ledDigits[d1]; //0.1's digit
+        PORTB = (1 << DIG2) | (1 << DIG3); //enable DIG4, disable DIG2,DIG3 0000 0110
+        _delay_ms(10);
+    }
+    return;
+}
